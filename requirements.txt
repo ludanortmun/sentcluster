@@ -1,2 +1,7 @@
 scikit_learn~=1.7.1
 sentence_transformers~=5.1.0
+fastapi~=0.116.1
+pydantic~=2.11.0
+uvicorn[standard]~=0.29.0
+grpcio~=1.64.0
+grpcio-tools~=1.64.0

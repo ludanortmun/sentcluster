@@ -8,7 +8,7 @@ class SentenceClusterer:
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.cluster_model = MeanShift()
 
-    def cluster_sentences(self, sentences: list[str]) -> dict[int, list[int]]:
+    def cluster_sentences(self, sentences: list[str]) -> dict[int, list[str]]:
         embeddings = self._embed_sentences(sentences)
         labels = self._cluster_embeddings(embeddings)
 

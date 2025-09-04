@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package sentcluster;
+
+service SentenceClustererService {
+  rpc ClusterSentences (ClusterRequest) returns (ClusterResponse);
+}
+
+message ClusterRequest {
+  repeated string sentences = 1;
+}
+
+message ClusterResponse {
+  repeated SentenceGroup sentence_groups = 1;
+}
+
+message SentenceGroup {
+  repeated string sentences = 1;
+}
+

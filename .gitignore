@@ -214,3 +214,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ignore gRPC generated files
+sentcluster/grpc/sentence_clusterer_pb2.py
+sentcluster/grpc/sentence_clusterer_pb2_grpc.py
+
