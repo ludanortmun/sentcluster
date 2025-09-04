@@ -12,9 +12,24 @@ Simple sentence clustering tool using pre-trained sentence embeddings and cluste
 
 ## Installation
 
+### Local Installation
 ```bash
 pip install -r requirements.txt
 ```
+
+### Docker Installation
+The project includes Docker support for both HTTP and gRPC servers:
+
+```bash
+# Build and run both servers with docker-compose
+docker compose up --build
+
+# Or run individually:
+docker build -f Dockerfile.http -t sentcluster-http .
+docker run -p 8000:8000 sentcluster-http
+```
+
+See [DOCKER.md](DOCKER.md) for detailed Docker usage instructions.
 
 ## Project Structure
 

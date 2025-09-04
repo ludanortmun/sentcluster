@@ -1,0 +1,18 @@
+services:
+  http-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.http
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  grpc-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.grpc
+    ports:
+      - "50051:50051"
+    environment:
+      - PYTHONUNBUFFERED=1
