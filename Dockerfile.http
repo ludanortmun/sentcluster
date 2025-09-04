@@ -20,9 +20,6 @@ COPY setup.py .
 # Install the package in development mode
 RUN pip install -e .
 
-# Generate gRPC code (needed for imports even in HTTP server)
-RUN python -m grpc_tools.protoc -I . --python_out=. --grpc_python_out=. sentcluster/grpc/sentence_clusterer.proto
-
 # Create a non-root user
 RUN useradd --create-home --shell /bin/bash app
 USER app
