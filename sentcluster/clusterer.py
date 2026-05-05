@@ -1,5 +1,6 @@
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import MeanShift
+from sklearn.decomposition import PCA
 
 
 class SentenceClusterer:
@@ -7,18 +8,18 @@ class SentenceClusterer:
     def __init__(self, ):
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.cluster_model = MeanShift()
+        self.dim_reductor = PCA(n_components=2)
 
-    def cluster_sentences(self, sentences: list[str]) -> dict[int, list[str]]:
+    def cluster_sentences(self, sentences: list[str]) -> list[tuple[str, tuple[float, float], int]]:
         embeddings = self._embed_sentences(sentences)
+        coords = self._project_embeddings(embeddings)
         labels = self._cluster_embeddings(embeddings)
 
-        clusters = {}
-        for label, sentence in zip(labels, sentences):
-            if label not in clusters:
-                clusters[label] = []
-            clusters[label].append(sentence)
+        return [(s, (c[0], c[1]), l) for s, c, l in zip(sentences, coords, labels)]
 
-        return clusters
+    def _project_embeddings(self, embeddings: list[list[float]]) -> list[tuple[float, float]]:
+        embeddings_pca = self.dim_reductor.fit_transform(embeddings).tolist()
+        return [(x[0], x[1]) for x in embeddings_pca]
 
     def _embed_sentences(self, sentences: list[str]) -> list[list[float]]:
         return self.embedding_model.encode(sentences).tolist()

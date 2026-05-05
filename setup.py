@@ -10,4 +10,5 @@ setup(
         "sentence_transformers~=5.1.0"
     ],
     python_requires=">=3.7",
+    include_package_data=True,
 )
