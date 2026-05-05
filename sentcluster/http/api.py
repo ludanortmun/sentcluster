@@ -7,6 +7,7 @@ from pydantic import BaseModel, model_validator
 
 from sentcluster.clusterer import SentenceClusterer
 
+MIN_BATCH_SIZE = 2
 MAX_BATCH_SIZE = 20
 
 @asynccontextmanager
@@ -25,6 +26,8 @@ class ClusterRequest(BaseModel):
 
     @model_validator(mode='after')
     def check_array_max_length(self):
+        if len(self.sentences) < MIN_BATCH_SIZE:
+            raise ValueError('Too few sentences in the request. Minimum allowed is {}'.format(MIN_BATCH_SIZE))
         if len(self.sentences) > MAX_BATCH_SIZE:
             raise ValueError('Too many sentences in the request. Maximum allowed is {}'.format(MAX_BATCH_SIZE))
         return self

@@ -28,5 +28,9 @@ USER app
 # Expose HTTP port
 EXPOSE 8000
 
+# Match README startup context for static path resolution
+WORKDIR /app/sentcluster/http
+ENV PYTHONPATH=../..
+
 # Set the entry point for HTTP server
 CMD ["python", "-m", "sentcluster.http.server"]

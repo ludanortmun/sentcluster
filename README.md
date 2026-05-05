@@ -59,7 +59,8 @@ python -m grpc_tools.protoc -I . --python_out=. --grpc_python_out=. sentcluster/
 
 Start the HTTP server:
 ```bash
-python -m sentcluster.http.server
+cd sentcluster/http
+PYTHONPATH=../.. python -m sentcluster.http.server
 ```
 
 The HTTP app will be available at `http://localhost:8000`.
@@ -120,7 +121,7 @@ Each returned item includes:
 
 #### Constraints and behavior
 
-- The request accepts up to `20` sentences per batch.
+- The request accepts between `2` and `20` sentences per batch.
 - Blank-line filtering is handled by the browser UI before submission.
 - The HTTP API returns projected 2D coordinates so the results can be plotted directly.
 
@@ -139,6 +140,8 @@ python -m sentcluster.grpc.server
 ```
 
 The gRPC server will listen on port 50051 by default.
+
+The gRPC `ClusterSentences` method enforces the same input bounds as HTTP: between `2` and `20` sentences per request.
 
 ## Dependencies
 
