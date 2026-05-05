@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.pytho
 # Copy the source code
 COPY sentcluster/ ./sentcluster/
 COPY setup.py .
+COPY MANIFEST.in .
 
 # Install the package in development mode
 RUN pip install -e .
@@ -26,6 +27,10 @@ USER app
 
 # Expose HTTP port
 EXPOSE 8000
+
+# Match README startup context for static path resolution
+WORKDIR /app/sentcluster/http
+ENV PYTHONPATH=../..
 
 # Set the entry point for HTTP server
 CMD ["python", "-m", "sentcluster.http.server"]

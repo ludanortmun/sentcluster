@@ -11,10 +11,13 @@ message ClusterRequest {
 }
 
 message ClusterResponse {
-  repeated SentenceGroup sentence_groups = 1;
+  repeated ClusteredSentence sentences = 1;
 }
 
-message SentenceGroup {
-  repeated string sentences = 1;
+message ClusteredSentence {
+  string sentence = 1;
+  double x = 2;
+  double y = 3;
+  int32 group = 4;
 }
 

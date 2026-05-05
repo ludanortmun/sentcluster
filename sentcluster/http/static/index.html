@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sent Cluster</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+<!--<div class="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(168,85,247,0.16),_transparent_25%)]"></div>-->
+
+<header class="mx-auto max-w-7xl px-6 pb-6 pt-12 lg:px-8">
+    <div class="mx-auto max-w-3xl text-center">
+        <h1 class="mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl">Sent Cluster</h1>
+        <p class="mt-4 text-lg text-slate-300">Paste one sentence per line, cluster them by meaning, and explore the result on an interactive 2D map.</p>
+    </div>
+</header>
+
+<main class="mx-auto max-w-7xl px-6 pb-16 lg:px-8">
+    <div class="grid gap-8 xl:grid-cols-[24rem,minmax(0,1fr)]">
+        <section class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur xl:top-8 xl:self-start">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-semibold text-white">Start here</h2>
+                    <p class="mt-2 text-sm text-slate-300">Enter between 2 and 20 sentences. Each non-empty line becomes a separate sentence.</p>
+                </div>
+                <div id="lineCounter" class="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-sm font-medium text-slate-200">0 / 20</div>
+            </div>
+
+            <form id="clusterForm" class="mt-6 space-y-4">
+                <label class="block">
+                    <span class="mb-2 block text-sm font-medium text-slate-200">Sentences</span>
+                    <textarea
+                        id="sentencesInput"
+                        rows="14"
+                        class="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400 focus:ring-4 focus:ring-sky-400/15"
+                        placeholder="Cats love sleeping in warm places.
+Dogs enjoy playing fetch in the park.
+Kittens often curl up in sunbeams.
+Puppies get excited when they hear a leash."
+                    ></textarea>
+                </label>
+
+                <div class="flex flex-wrap gap-3">
+                    <button id="submitButton" type="submit" class="inline-flex items-center justify-center rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">Cluster sentences</button>
+                    <button id="clearButton" type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-white/5">Clear</button>
+                </div>
+
+                <p class="text-xs text-slate-400">Tip: blank lines are ignored, and repeated sentences will still be plotted as separate points.</p>
+                <div id="messageBox" class="hidden rounded-2xl border px-4 py-3 text-sm"></div>
+            </form>
+
+            <div class="mt-8 rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+                <h3 class="text-lg font-semibold text-white">How it works</h3>
+                <ol class="mt-4 space-y-3 text-sm text-slate-300">
+                    <li><span class="font-semibold text-slate-100">1.</span> Each sentence is embedded using <strong>all-MiniLM-L6-v2</strong> from <a class="text-sky-300 underline decoration-sky-400/40 underline-offset-4 hover:text-sky-200" href="https://huggingface.co/sentence-transformers" target="_blank" rel="noreferrer">Sentence Transformers</a>.</li>
+                    <li><span class="font-semibold text-slate-100">2.</span> The embeddings are grouped with <a class="text-sky-300 underline decoration-sky-400/40 underline-offset-4 hover:text-sky-200" href="https://scikit-learn.org/stable/modules/generated/sklearn.cluster.MeanShift.html" target="_blank" rel="noreferrer">MeanShift</a>, which estimates cluster groupings directly from the embedding space.</li>
+                    <li><span class="font-semibold text-slate-100">3.</span> <a class="text-sky-300 underline decoration-sky-400/40 underline-offset-4 hover:text-sky-200" href="https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html" target="_blank" rel="noreferrer">PCA</a> projects the original 384-dimensional embeddings into 2D so you can inspect them visually.</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="space-y-8">
+            <div class="grid gap-8 md:grid-cols-3">
+                <div class="md:col-span-2 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-slate-950/30 backdrop-blur">
+                    <div class="flex flex-col gap-2 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h2 class="text-2xl font-semibold text-white">Cluster map</h2>
+                            <p class="mt-1 text-sm text-slate-300">Hover over a point to see the full sentence. Colors indicate sentence groups.</p>
+                        </div>
+                        <div id="plotSummary" class="text-sm text-slate-400">No data yet</div>
+                    </div>
+
+                    <div id="emptyState" class="flex min-h-[28rem] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700/80 bg-slate-950/50 px-6 text-center">
+                        <div class="max-w-md">
+                            <h3 class="text-xl font-semibold text-white">Your scatter plot will appear here</h3>
+                            <p class="mt-3 text-sm leading-6 text-slate-400">Submit a batch of sentences to see how they group together in semantic space.</p>
+                        </div>
+                    </div>
+
+                    <div id="plot" class="relative hidden min-h-[28rem]">
+                        <canvas id="plotCanvas"></canvas>
+                    </div>
+                </div>
+
+                <aside class="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-slate-950/30 backdrop-blur">
+                    <div class="border-b border-white/10 pb-4">
+                        <h2 class="text-2xl font-semibold text-white">Sentence legend</h2>
+                        <p class="mt-1 text-sm text-slate-300">Each sentence is listed with its assigned group and color.</p>
+                    </div>
+                    <div id="legendEmpty" class="mt-6 rounded-2xl border border-dashed border-slate-700/80 bg-slate-950/40 px-4 py-8 text-center text-sm text-slate-400">Cluster results will populate this panel.</div>
+                    <div id="legendList" class="mt-6 hidden space-y-5"></div>
+                </aside>
+            </div>
+        </section>
+    </div>
+</main>
+
+<script>
+    const MAX_SENTENCES = 20;
+    const MIN_SENTENCES = 2;
+    // Okabe-Ito colorblind-safe palette
+    const GROUP_COLORS = [
+        '#56B4E9', '#E69F00', '#009E73', '#D55E00', '#CC79A7', '#0072B2', '#F0E442', '#999999'
+    ];
+    // Chart.js point styles — distinct shapes so groups differ without relying on color alone
+    const GROUP_SHAPES = ['circle', 'triangle', 'rect', 'rectRot', 'star', 'cross', 'crossRot', 'rectRounded'];
+
+    const clusterForm = document.getElementById('clusterForm');
+    const sentencesInput = document.getElementById('sentencesInput');
+    const submitButton = document.getElementById('submitButton');
+    const clearButton = document.getElementById('clearButton');
+    const lineCounter = document.getElementById('lineCounter');
+    const messageBox = document.getElementById('messageBox');
+    const plot = document.getElementById('plot');
+    const plotCanvas = document.getElementById('plotCanvas');
+    const emptyState = document.getElementById('emptyState');
+    const plotSummary = document.getElementById('plotSummary');
+    const legendEmpty = document.getElementById('legendEmpty');
+    const legendList = document.getElementById('legendList');
+
+    let chartInstance = null;
+
+    function parseSentences(value) {
+        return value
+            .split(/\r?\n/)
+            .map((sentence) => sentence.trim())
+            .filter(Boolean);
+    }
+
+    function updateCounter() {
+        const sentences = parseSentences(sentencesInput.value);
+        const count = sentences.length;
+
+        lineCounter.textContent = `${count} / ${MAX_SENTENCES}`;
+        lineCounter.className = `rounded-full border px-3 py-1 text-sm font-medium ${count > MAX_SENTENCES ? 'border-rose-400/50 bg-rose-500/10 text-rose-200' : 'border-slate-700 bg-slate-900/70 text-slate-200'}`;
+        submitButton.disabled = count > MAX_SENTENCES;
+        submitButton.textContent = count === 0 ? 'Try the examples' : 'Cluster sentences';
+    }
+
+    function showMessage(type, text) {
+        const styles = {
+            error: 'border-rose-400/30 bg-rose-500/10 text-rose-100',
+            info: 'border-sky-400/30 bg-sky-500/10 text-sky-100',
+            success: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'
+        };
+
+        messageBox.textContent = text;
+        messageBox.className = `rounded-2xl border px-4 py-3 text-sm ${styles[type] || styles.info}`;
+    }
+
+    function hideMessage() {
+        messageBox.className = 'hidden rounded-2xl border px-4 py-3 text-sm';
+        messageBox.textContent = '';
+    }
+
+    function getGroupColor(group, orderedGroups) {
+        const index = orderedGroups.indexOf(group);
+        return GROUP_COLORS[index % GROUP_COLORS.length];
+    }
+
+    function getGroupShape(group, orderedGroups) {
+        const index = orderedGroups.indexOf(group);
+        return GROUP_SHAPES[index % GROUP_SHAPES.length];
+    }
+
+    function getShapeSvg(shape, color) {
+        const fill = `fill="${color}"`;
+        const stroke = `stroke="${color}" stroke-width="2.5" stroke-linecap="round"`;
+        switch (shape) {
+            case 'circle':
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" ${fill}/></svg>`;
+            case 'triangle':
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><polygon points="7,1.5 12.5,12.5 1.5,12.5" ${fill}/></svg>`;
+            case 'rect':
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><rect x="1.5" y="1.5" width="11" height="11" ${fill}/></svg>`;
+            case 'rectRot':
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><polygon points="7,1 13,7 7,13 1,7" ${fill}/></svg>`;
+            case 'star':
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><polygon points="7,1 8.5,5.5 13.5,5.5 9.5,8.5 11,13 7,10 3,13 4.5,8.5 0.5,5.5 5.5,5.5" ${fill}/></svg>`;
+            case 'cross':
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><line x1="7" y1="1" x2="7" y2="13" ${stroke}/><line x1="1" y1="7" x2="13" y2="7" ${stroke}/></svg>`;
+            case 'crossRot':
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="12" y2="12" ${stroke}/><line x1="12" y1="2" x2="2" y2="12" ${stroke}/></svg>`;
+            case 'rectRounded':
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><rect x="1.5" y="1.5" width="11" height="11" rx="3" ${fill}/></svg>`;
+            default:
+                return `<svg width="14" height="14" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="5.5" ${fill}/></svg>`;
+        }
+    }
+
+    function renderLegend(sentences) {
+        if (!sentences.length) {
+            legendEmpty.classList.remove('hidden');
+            legendList.classList.add('hidden');
+            legendList.innerHTML = '';
+            return;
+        }
+
+        const groups = [...new Set(sentences.map((item) => item.group))].sort((a, b) => a - b);
+        legendList.innerHTML = groups.map((group) => {
+            const color = getGroupColor(group, groups);
+            const shape = getGroupShape(group, groups);
+            const members = sentences.filter((item) => item.group === group);
+
+            return `
+                <section class="space-y-3">
+                    <div class="flex items-center gap-3">
+                        ${getShapeSvg(shape, color)}
+                        <h3 class="text-sm font-semibold tracking-wide text-white">Group ${group}</h3>
+                        <span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-300">${members.length} sentence${members.length === 1 ? '' : 's'}</span>
+                    </div>
+                    <ul class="space-y-2">
+                        ${members.map((item) => `
+                            <li class="rounded-2xl border border-white/10 bg-slate-950/50 px-3 py-3 text-sm leading-6 text-slate-200">
+                                <p>${escapeHtml(item.sentence)}</p>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </section>
+            `;
+        }).join('');
+
+        legendEmpty.classList.add('hidden');
+        legendList.classList.remove('hidden');
+    }
+
+    function escapeHtml(value) {
+        return value
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
+
+    function renderPlot(sentences) {
+        if (!sentences.length) {
+            emptyState.classList.remove('hidden');
+            plot.classList.add('hidden');
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
+            plotSummary.textContent = 'No data yet';
+            return;
+        }
+
+        const groups = [...new Set(sentences.map((item) => item.group))].sort((a, b) => a - b);
+        const datasets = groups.map((group) => {
+            const color = getGroupColor(group, groups);
+            const shape = getGroupShape(group, groups);
+            const members = sentences.filter((item) => item.group === group);
+            return {
+                label: `Group ${group}`,
+                data: members.map((item) => ({ x: item.x, y: item.y, sentence: item.sentence })),
+                backgroundColor: color,
+                borderColor: '#0f172a',
+                borderWidth: 1,
+                pointStyle: shape,
+                pointRadius: 8,
+                pointHoverRadius: 11,
+            };
+        });
+
+        emptyState.classList.add('hidden');
+        plot.classList.remove('hidden');
+        plotSummary.textContent = `${sentences.length} sentence${sentences.length === 1 ? '' : 's'} across ${groups.length} group${groups.length === 1 ? '' : 's'}`;
+
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(plotCanvas, {
+            type: 'scatter',
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#020617',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        titleColor: '#94a3b8',
+                        bodyColor: '#f8fafc',
+                        padding: 10,
+                        callbacks: {
+                            title: (items) => `Group ${items[0].dataset.label.replace('Group ', '')}`,
+                            label: (item) => item.raw.sentence
+                        }
+                    }
+                },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                }
+            }
+        });
+    }
+
+    async function clusterSentences(event) {
+        event.preventDefault();
+        hideMessage();
+
+        const typed = parseSentences(sentencesInput.value);
+        const usingPlaceholders = typed.length === 0;
+        const sentences = usingPlaceholders ? parseSentences(sentencesInput.placeholder) : typed;
+
+        if (!usingPlaceholders && sentences.length < MIN_SENTENCES) {
+            showMessage('error', 'Please enter at least 2 sentences so the service can project them into 2D.');
+            return;
+        }
+
+        if (sentences.length > MAX_SENTENCES) {
+            showMessage('error', `Please reduce the input to ${MAX_SENTENCES} sentences or fewer.`);
+            return;
+        }
+
+        submitButton.disabled = true;
+            submitButton.textContent = 'Clustering…';
+        showMessage('info', 'Requesting clusters from the API…');
+
+        try {
+            const response = await fetch('/clusters', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ sentences })
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                renderPlot([]);
+                renderLegend([]);
+                showMessage(
+                    'error',
+                    payload.detail
+                        ? Array.isArray(payload.detail)
+                            ? payload.detail.map((item) => item.msg || JSON.stringify(item)).join('; ')
+                            : String(payload.detail)
+                        : 'The server could not cluster these sentences.'
+                );
+                return;
+            }
+
+            const results = Array.isArray(payload.sentences) ? payload.sentences : [];
+            renderPlot(results);
+            renderLegend(results);
+            showMessage('success', `Clustered ${results.length} sentence${results.length === 1 ? '' : 's'} successfully.`);
+        } catch (_error) {
+            renderPlot([]);
+            renderLegend([]);
+            showMessage('error', 'Unexpected error while clustering sentences.');
+        } finally {
+            updateCounter();
+        }
+    }
+
+    function clearAll() {
+        sentencesInput.value = '';
+        hideMessage();
+        renderPlot([]);
+        renderLegend([]);
+        updateCounter();
+    }
+
+    sentencesInput.addEventListener('input', updateCounter);
+    clusterForm.addEventListener('submit', clusterSentences);
+    clearButton.addEventListener('click', clearAll);
+
+    updateCounter();
+</script>
+</body>
+</html>
